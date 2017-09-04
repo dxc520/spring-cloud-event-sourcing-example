@@ -1,0 +1,11 @@
+version: 2
+service:
+  order-service-proxy:
+    image: 192.168.31.34/squid/squid-poc-server:latest
+    environment:
+      username: "username"
+      password: "password"
+      url: "http://order-service-url"
+      squid.stdout: "true"
+      SQUID_ZK_CONNECTION: "zookeeper:2181"
+      command: ["/bin/sh", "/squid-executor/bin/squid-executor.sh", "start", "-n", "squid.dataman.com", "-r" ,"foreground", "-env", "docker", "-d", "/squid-executor/apps/app"]

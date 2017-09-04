@@ -111,6 +111,8 @@ shopping-cart-service:
   environment:
    - SPRING_PROFILES_ACTIVE=docker
    - DOCKER_IP=$DOCKER_IP
+   - SQUID_ZK_ADDRESS="zookeeper:2181"
+   - SQUID_SERVICE_NAMESPACE="squid.dataman.com"
 online-store-web:
   image: kbastani/online-store-web
   ports:
