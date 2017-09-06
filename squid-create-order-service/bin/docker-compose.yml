@@ -1,0 +1,13 @@
+order-service-proxy:
+    image: 192.168.31.34/squid/squid-poc-server:latest
+    volumes:
+      - /etc/localtime:/etc/localtime
+      - /etc/timezone:/etc/timezone
+    environment:
+      - username=user
+      - password=password
+      - url=http://192.168.1.55:8883/info
+      - token_uri=http://192.168.1.55:8787
+      - squid.stdout=true
+      - SQUID_ZK_CONNECTION=192.168.1.95:2181
+      - command=/bin/sh /squid-executor/bin/squid-executor.sh start -n squid.dataman.com -r foreground -env docker -d /squid-executor/apps

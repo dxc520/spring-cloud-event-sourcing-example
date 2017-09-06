@@ -22,11 +22,16 @@ public class OnlineStoreApplication extends WebSecurityConfigurerAdapter {
 
     @Override
     public void configure(HttpSecurity http) throws Exception {
+    	
         http.antMatcher("/**")
                 .authorizeRequests()
                 .antMatchers("/index.html", "/login", "/", "/api/catalog/**",
-                        "/user", "/assets/**").permitAll()
+                        "/user", "/orders","/orders/**", "/assets/**","/v1/**").permitAll()
                 .anyRequest().authenticated().and().csrf().disable();
+       
+//    	http.antMatcher("/**")
+//        .authorizeRequests().antMatchers("/**").permitAll().and().csrf().disable();
+         
     }
 
 }

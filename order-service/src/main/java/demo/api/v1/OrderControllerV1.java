@@ -43,6 +43,7 @@ public class OrderControllerV1 {
 
     @RequestMapping(path = "/orders/{orderId}")
     public ResponseEntity getOrder(@PathVariable("orderId") String orderId) throws Exception {
+    	System.out.println("get order ... come here ...****************++++++++");
         assert orderId != null;
         return Optional.ofNullable(orderService.getOrder(orderId, true))
                 .map(a -> new ResponseEntity<Order>(a, HttpStatus.OK))
@@ -51,6 +52,7 @@ public class OrderControllerV1 {
 
     @RequestMapping(path = "/orders", method = RequestMethod.POST)
     public ResponseEntity createOrder(@RequestBody List<LineItem> lineItems) throws Exception {
+    	System.out.println("create order ...come here ....=============================++++++++");
         assert lineItems != null;
         assert lineItems.size() > 0;
         return Optional.ofNullable(orderService.createOrder(lineItems))

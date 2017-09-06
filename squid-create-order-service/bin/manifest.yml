@@ -1,0 +1,16 @@
+---
+applications:
+- name: squid-create-order-service
+  memory: 1024M
+  instances: 1
+  host: squid-create-order-service-${random-word}
+  path: target/squid-create-order-service-0.0.1-SNAPSHOT.jar
+  env:
+    SPRING_PROFILES_ACTIVE: cloud
+    DEBUG: "true"
+    debug: "true"
+  services:
+   - discovery-service
+   - config-service
+   - user-service
+   - shopping-cart-db

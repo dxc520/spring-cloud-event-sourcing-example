@@ -1,12 +1,8 @@
 package demo.api.v1;
 
-import demo.cart.*;
-import demo.catalog.Catalog;
-import demo.inventory.Inventory;
-import demo.order.Order;
-import demo.order.OrderEvent;
-import demo.order.OrderEventType;
-import demo.user.User;
+import com.dataman.squid.client.SquidBlockingClient;
+import com.dataman.squid.client.SquidClientBuilder;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import reactor.core.publisher.Flux;
 
 import java.util.Arrays;
 import java.util.List;
@@ -23,14 +18,28 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import demo.cart.CartEvent;
+import demo.cart.CartEventRepository;
+import demo.cart.CartEventType;
+import demo.cart.CheckoutResult;
+import demo.cart.LineItem;
+import demo.cart.ShoppingCart;
+import demo.catalog.Catalog;
+import demo.inventory.Inventory;
+import demo.order.Order;
+import demo.order.OrderEvent;
+import demo.order.OrderEventType;
+import demo.order.CreateOrderRequest;
+import demo.user.User;
+import reactor.core.publisher.Flux;
+
 import static java.util.stream.Collectors.counting;
 import static java.util.stream.Collectors.groupingBy;
 
 /**
- * The {@link ShoppingCartServiceV1} implements business logic for aggregating the state of
- * a user's actions represented by a sequence of {@link CartEvent}. The generated aggregate
- * uses event sourcing to produce a {@link ShoppingCart} containing a collection of
- * {@link demo.cart.LineItem}.
+ * The {@link ShoppingCartServiceV1} implements business logic for aggregating the state of a user's actions represented
+ * by a sequence of {@link CartEvent}. The generated aggregate uses event sourcing to produce a {@link ShoppingCart}
+ * containing a collection of {@link demo.cart.LineItem}.
  *
  * @author Ben Hale
  * @author Kenny Bastani
@@ -44,10 +53,19 @@ public class ShoppingCartServiceV1 {
     private CartEventRepository cartEventRepository;
     private RestTemplate restTemplate;
 
+    private SquidBlockingClient<CreateOrderRequest, Order> orderServiceClient = SquidClientBuilder
+            .newBlockClient(CreateOrderRequest.class, Order.class)
+            .dependencyServiceName("createOrderService")
+            .dependencyServiceNamespace("squid.dataman.com")
+            .serviceName("shoppingCartService")
+            .responseTimeout(5000)
+            .build();
+
+    public ShoppingCartServiceV1(){}
     @Autowired
     public ShoppingCartServiceV1(CartEventRepository cartEventRepository,
-                                 @LoadBalanced OAuth2RestTemplate oAuth2RestTemplate,
-                                 @LoadBalanced RestTemplate normalRestTemplate) {
+            @LoadBalanced OAuth2RestTemplate oAuth2RestTemplate,
+            @LoadBalanced RestTemplate normalRestTemplate) {
         this.cartEventRepository = cartEventRepository;
         this.oAuth2RestTemplate = oAuth2RestTemplate;
         this.restTemplate = normalRestTemplate;
@@ -93,7 +111,6 @@ public class ShoppingCartServiceV1 {
      * Get the shopping cart for the currently authenticated user
      *
      * @return an aggregate object derived from events performed by the user
-     * @throws Exception
      */
     public ShoppingCart getShoppingCart() throws Exception {
         User user = oAuth2RestTemplate.getForObject("http://user-service/uaa/v1/me", User.class);
@@ -111,7 +128,6 @@ public class ShoppingCartServiceV1 {
      * @param user    is the user to retrieve the shopping cart for
      * @param catalog is the catalog used to generate the shopping cart
      * @return a shopping cart representing the aggregate state of the user's cart
-     * @throws Exception
      */
     public ShoppingCart aggregateCartEvents(User user, Catalog catalog) throws Exception {
         Flux<CartEvent> cartEvents =
@@ -147,10 +163,11 @@ public class ShoppingCartServiceV1 {
         if (currentCart != null) {
             // Reconcile the current cart with the available inventory
             Inventory[] inventory =
-                    oAuth2RestTemplate.getForObject(String.format("http://inventory-service/v1/inventory?productIds=%s", currentCart.getLineItems()
-                            .stream()
-                            .map(LineItem::getProductId)
-                            .collect(Collectors.joining(","))), Inventory[].class);
+                    oAuth2RestTemplate.getForObject(String.format("http://inventory-service/v1/inventory?productIds=%s",
+                            currentCart.getLineItems()
+                                    .stream()
+                                    .map(LineItem::getProductId)
+                                    .collect(Collectors.joining(","))), Inventory[].class);
 
             if (inventory != null) {
                 Map<String, Long> inventoryItems = Arrays.asList(inventory)
@@ -161,23 +178,49 @@ public class ShoppingCartServiceV1 {
                 if (checkAvailableInventory(checkoutResult, currentCart, inventoryItems)) {
                     // Reserve the available inventory
 
-                    // Create a new order
-                    Order orderResponse = oAuth2RestTemplate.postForObject("http://order-service/v1/orders",
-                            currentCart.getLineItems().stream()
-                                    .map(prd ->
-                                            new demo.order.LineItem(prd.getProduct().getName(),
-                                                    prd.getProductId(), prd.getQuantity(),
-                                                    prd.getProduct().getUnitPrice(), TAX))
-                                    .collect(Collectors.toList()),
-                            Order.class);
+                    CreateOrderRequest createOrderRequest = new CreateOrderRequest();
+                    createOrderRequest.setLineItems(currentCart.getLineItems());
+                    Order orderResponse =  null;
+                    try{
+                    	System.out.println("use squid create order ...begin ...");
+                    	orderResponse=orderServiceClient.send(createOrderRequest);
+                    }catch(Exception e){
+                    		System.out.println("Oh my God ###################--------------");
+                    	e.printStackTrace();
+                    }
+//                    Order orderResponse = orderServiceClient.send(createOrderRequest);
+                    System.out.println("use squid create order . oerderResonse="+orderResponse);
+                   
+                   
+                    if(orderResponse==null){
+                    		 System.out.println("use squid create order . oerderResonse is null .then creat by origin ");
+                    		   orderResponse = oAuth2RestTemplate.postForObject("http://order-service/v1/orders",
+                                      currentCart.getLineItems().stream()
+                                              .map(prd ->
+                                                      new demo.order.LineItem(prd.getProduct().getName(),
+                                                              prd.getProductId(), prd.getQuantity(),
+                                                              prd.getProduct().getUnitPrice(), TAX))
+                                              .collect(Collectors.toList()),
+                                      Order.class);
+                    	}
+                    
+                   if(orderResponse==null){
+                	   System.out.println("*****************orderResponse==null *************************");
+                   }else{
+                	   System.out.println("*****************orderResponse==IS NOT null *************************");
+                   } 	
+                   
+                   checkoutResult.setResultMessage("Order created");
 
                     if (orderResponse != null) {
                         // Order creation successful
                         checkoutResult.setResultMessage("Order created");
 
                         // Add order event
-                        oAuth2RestTemplate.postForEntity(String.format("http://order-service/v1/orders/%s/events", orderResponse.getOrderId()),
-                                new OrderEvent(OrderEventType.CREATED, orderResponse.getOrderId()), ResponseEntity.class);
+                        oAuth2RestTemplate.postForEntity(
+                                String.format("http://order-service/v1/orders/%s/events", orderResponse.getOrderId()),
+                                new OrderEvent(OrderEventType.CREATED, orderResponse.getOrderId()),
+                                ResponseEntity.class);
 
                         checkoutResult.setOrder(orderResponse);
                     }
@@ -195,7 +238,7 @@ public class ShoppingCartServiceV1 {
     }
 
     public Boolean checkAvailableInventory(CheckoutResult checkoutResult, ShoppingCart currentCart,
-                                           Map<String, Long> inventoryItems) {
+            Map<String, Long> inventoryItems) {
         Boolean hasInventory = true;
         // Determine if inventory is available
         try {

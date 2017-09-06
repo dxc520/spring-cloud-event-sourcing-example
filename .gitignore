@@ -1,3 +1,9 @@
+.project
+*/.project
+.settings
+*/.settings
+.classpath
+*/.classpath
 
 # Created by https://www.gitignore.io/api/intellij,java,maven
 
