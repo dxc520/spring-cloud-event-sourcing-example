@@ -210,25 +210,34 @@ public class ShoppingCartServiceV1 {
                 	   System.out.println("*****************orderResponse==IS NOT null *************************");
                    } 	
                    
-                   checkoutResult.setResultMessage("Order created");
 
                     if (orderResponse != null) {
                         // Order creation successful
                         checkoutResult.setResultMessage("Order created");
 
                         // Add order event
-                        oAuth2RestTemplate.postForEntity(
-                                String.format("http://order-service/v1/orders/%s/events", orderResponse.getOrderId()),
-                                new OrderEvent(OrderEventType.CREATED, orderResponse.getOrderId()),
-                                ResponseEntity.class);
-
+			                 System.out.println("this is orderResponse="+orderResponse);
+			                 try{
+			                        oAuth2RestTemplate.postForEntity(
+			                                String.format("http://order-service/v1/orders/%s/events", orderResponse.getOrderId()),
+			                                new OrderEvent(OrderEventType.CREATED, orderResponse.getOrderId()),
+			                                ResponseEntity.class);
+			                 }catch(Exception e){
+			                	 System.out.println("http://order-service/v1/orders/%s/events is error ");
+			                	 e.printStackTrace();
+			                 }
                         checkoutResult.setOrder(orderResponse);
                     }
 
+                    try{
                     User user = oAuth2RestTemplate.getForObject("http://user-service/uaa/v1/me", User.class);
 
                     // Clear the shopping cart
                     addCartEvent(new CartEvent(CartEventType.CHECKOUT, user.getId()), user);
+                    }catch(Exception e){
+                    	System.out.println("checkout exception ...");
+                    	e.printStackTrace();
+                    }
                 }
             }
         }

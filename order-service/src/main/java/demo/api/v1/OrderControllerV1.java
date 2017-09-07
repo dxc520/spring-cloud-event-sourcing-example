@@ -45,9 +45,12 @@ public class OrderControllerV1 {
     public ResponseEntity getOrder(@PathVariable("orderId") String orderId) throws Exception {
     	System.out.println("get order ... come here ...****************++++++++");
         assert orderId != null;
-        return Optional.ofNullable(orderService.getOrder(orderId, true))
+        return Optional.ofNullable(orderService.getOrder(orderId, false))
                 .map(a -> new ResponseEntity<Order>(a, HttpStatus.OK))
                 .orElseThrow(() -> new Exception("Could not retrieve order"));
+//        return Optional.ofNullable(orderService.getOrder(orderId, true))
+//                .map(a -> new ResponseEntity<Order>(a, HttpStatus.OK))
+//                .orElseThrow(() -> new Exception("Could not retrieve order"));
     }
 
     @RequestMapping(path = "/orders", method = RequestMethod.POST)

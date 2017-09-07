@@ -99,6 +99,8 @@ public class OrderServiceV1 {
 
 		newOrder = orderRepository.save(newOrder);
 		System.out.println("*******dxc****create virtual order ...end  and the newOrder is =" + newOrder);
+		newOrder.setLastModified(null);
+		newOrder.setCreatedAt(null);
 		return newOrder;
 	}
 
@@ -121,7 +123,8 @@ public class OrderServiceV1 {
 	public Order getOrder(String orderId, Boolean validate) {
 		// Get the order for the event
 		Order order = orderRepository.findOne(orderId);
-
+		System.out.println("get order ....*****="+order);
+		
 		if (validate) {
 			try {
 				// Validate the account number of the event's order belongs to
@@ -134,7 +137,7 @@ public class OrderServiceV1 {
 
 		Flux<OrderEvent> orderEvents = Flux
 				.fromStream(orderEventRepository.findOrderEventsByOrderId(order.getOrderId()));
-
+System.out.println("get order .OrderEvents="+orderEvents);
 		// Aggregate the state of order
 		return orderEvents.takeWhile(orderEvent -> orderEvent.getType() != OrderEventType.DELIVERED)
 				.reduceWith(() -> order, Order::incorporate).get();
